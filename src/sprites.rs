@@ -1,7 +1,8 @@
-use raylib::prelude::*;
 use crate::framebuffer::Framebuffer;
+use crate::gameplay::SpriteKind;
 use crate::player::Player;
 use crate::texture::TextureManager;
+use raylib::prelude::*;
 use std::f32::consts::PI;
 use std::time::Instant;
 
@@ -11,35 +12,41 @@ pub struct Sprite {
     pub pos: Vector2,
     pub texture_name: String,
     pub scale: f32,
-    pub damaging: bool,
+    pub kind: SpriteKind,
     pub animation: Option<AnimatedSprite>, // Opcional para sprites estáticos
 }
 
 #[derive(Clone)]
 pub struct AnimatedSprite {
-    pub frames: Vec<String>,          // nombres de las texturas para cada frame
-    pub frame_duration: f32,          // duración de cada frame en segundos
-    pub current_frame: usize,         // frame actual
-    pub last_update: Instant,         // último momento de actualización
+    pub frames: Vec<String>,  // nombres de las texturas para cada frame
+    pub frame_duration: f32,  // duración de cada frame en segundos
+    pub current_frame: usize, // frame actual
+    pub last_update: Instant, // último momento de actualización
 }
 
 impl Sprite {
-    pub fn new_static(pos: Vector2, texture_name: String, scale: f32, damaging: bool) -> Self {
+    pub fn new_static(pos: Vector2, texture_name: String, scale: f32, kind: SpriteKind) -> Self {
         Sprite {
             pos,
             texture_name,
             scale,
-            damaging,
+            kind,
             animation: None,
         }
     }
 
-    pub fn new_animated(pos: Vector2, frames: Vec<String>, frame_duration: f32, scale: f32, damaging: bool) -> Self {
+    pub fn new_animated(
+        pos: Vector2,
+        frames: Vec<String>,
+        frame_duration: f32,
+        scale: f32,
+        kind: SpriteKind,
+    ) -> Self {
         Sprite {
             pos,
             texture_name: frames[0].clone(), // Usar el primer frame como textura inicial
             scale,
-            damaging,
+            kind,
             animation: Some(AnimatedSprite {
                 frames,
                 frame_duration,
@@ -53,7 +60,7 @@ impl Sprite {
         if let Some(anim) = &mut self.animation {
             let now = Instant::now();
             let elapsed = now.duration_since(anim.last_update).as_secs_f32();
-            
+
             if elapsed >= anim.frame_duration {
                 anim.current_frame = (anim.current_frame + 1) % anim.frames.len();
                 self.texture_name = anim.frames[anim.current_frame].clone();
@@ -65,10 +72,10 @@ impl Sprite {
 
 pub fn render_sprites(
     framebuffer: &mut Framebuffer,
-    sprites: &mut Vec<Sprite>,
+    sprites: &mut [Sprite],
     player: &Player,
     texture_manager: &TextureManager,
-    depth_buffer: &Vec<f32>,
+    depth_buffer: &[f32],
 ) {
     let screen_width = framebuffer.width as f32;
     let screen_height = framebuffer.height as f32;
@@ -79,11 +86,11 @@ pub fn render_sprites(
     }
 
     // 1. Ordenar sprites de más lejos a más cerca
-    let mut sorted_sprites = sprites.clone();
+    let mut sorted_sprites: Vec<&Sprite> = sprites.iter().collect();
     sorted_sprites.sort_by(|a, b| {
         let dist_a = (a.pos.x - player.pos.x).powi(2) + (a.pos.y - player.pos.y).powi(2);
         let dist_b = (b.pos.x - player.pos.x).powi(2) + (b.pos.y - player.pos.y).powi(2);
-        dist_b.partial_cmp(&dist_a).unwrap()
+        dist_b.total_cmp(&dist_a)
     });
 
     // 2. Dibujar sprites uno por uno
@@ -111,13 +118,14 @@ pub fn render_sprites(
 
         // Calcular distancia perpendicular (corregir fish-eye)
         let distance = (dx * dx + dy * dy).sqrt() * (angle_diff).cos();
-        
+
         // Calcular tamaño en pantalla
         let sprite_height = (screen_height / distance) * sprite.scale;
         let sprite_width = sprite_height; // mantener proporción 1:1
 
         // Calcular posición en pantalla
-        let sprite_screen_x = (screen_width / 2.0 * (1.0 + angle_diff / (player.fov / 2.0))) - sprite_width / 2.0;
+        let sprite_screen_x =
+            (screen_width / 2.0 * (1.0 + angle_diff / (player.fov / 2.0))) - sprite_width / 2.0;
         let sprite_screen_y = half_screen_height;
 
         // Obtener textura
@@ -135,7 +143,7 @@ pub fn render_sprites(
                 }
 
                 let tex_x = x as f32 / sprite_width;
-                
+
                 for y in 0..sprite_height as i32 {
                     let screen_y = sprite_screen_y as i32 + y;
                     if screen_y < 0 || screen_y >= screen_height as i32 {
@@ -144,7 +152,7 @@ pub fn render_sprites(
 
                     let tex_y = y as f32 / sprite_height;
                     let color = sample_sprite_texture(texture, tex_x, tex_y);
-                    
+
                     // Solo dibujar si el pixel no es transparente
                     if (color >> 24) > 10 {
                         framebuffer.set_pixel_fast(screen_x as u32, screen_y as u32, color);
