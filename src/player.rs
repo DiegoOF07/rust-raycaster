@@ -1,19 +1,19 @@
+use crate::framebuffer::{Framebuffer, rgba_to_u32};
 use raylib::prelude::*;
 use std::f32::consts::PI;
-use crate::framebuffer::{Framebuffer, rgba_to_u32};
 
-pub struct Player{
+pub struct Player {
     pub pos: Vector2,
     pub a: f32,
-    pub fov: f32
+    pub fov: f32,
 }
 
 impl Player {
-    pub fn new(pos: Vector2) -> Self{
-        Player { 
+    pub fn new(pos: Vector2) -> Self {
+        Player {
             pos,
             a: 0.0,
-            fov: PI / 3.0
+            fov: PI / 3.0,
         }
     }
 
@@ -22,7 +22,7 @@ impl Player {
         framebuffer: &mut Framebuffer,
         pos: Vector2,
         size: f32,
-        color: Color
+        color: Color,
     ) {
         let center_x = self.pos.x + pos.x;
         let center_y = self.pos.y + pos.y;
@@ -33,8 +33,14 @@ impl Player {
 
         // Pre-calcular puntos del triángulo
         let tip = Vector2::new(center_x + size * a.cos(), center_y + size * a.sin());
-        let left_pt = Vector2::new(center_x + size * 0.6 * left.cos(), center_y + size * 0.6 * left.sin());
-        let right_pt = Vector2::new(center_x + size * 0.6 * right.cos(), center_y + size * 0.6 * right.sin());
+        let left_pt = Vector2::new(
+            center_x + size * 0.6 * left.cos(),
+            center_y + size * 0.6 * left.sin(),
+        );
+        let right_pt = Vector2::new(
+            center_x + size * 0.6 * right.cos(),
+            center_y + size * 0.6 * right.sin(),
+        );
 
         // Convertir color a u32 una sola vez
         let color_u32 = rgba_to_u32(color.r, color.g, color.b, color.a);
